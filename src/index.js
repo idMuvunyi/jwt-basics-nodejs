@@ -5,7 +5,12 @@ const cors = require("cors");
 const { verify } = require("jsonwebtoken");
 const { hash, compare } = require("bcrypt");
 const { database } = require("./data");
-// Register a user
+const {
+  createAccessToken,
+  createRefreshToken,
+  sendAccessToken,
+  sendRefreshToken,
+} = require("./tokens");
 
 const server = express();
 
@@ -25,11 +30,7 @@ server.use(express.json());
 // support url emcoded bodies
 server.use(express.urlencoded({ extended: true }));
 
-server.listen(process.env.PORT, () =>
-  console.log(`Server running at port ${process.env.PORT}`)
-);
-
-// endpoint routes (placed here for now)
+// User registration endpoint routes (placed here for now)
 server.post("/register", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -52,3 +53,34 @@ server.post("/register", async (req, res) => {
     });
   }
 });
+
+// User Login endpoint
+server.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    // Find user in database
+    const user = database.find((user) => user.email === email);
+    if (!user) throw new Error("User not found");
+    // Compare crypted password to see if matches
+    const isValid = await compare(password, user.password);
+    if (!isValid) throw new Error("Password not correct");
+    // Create access and refresh token
+    const accessToken = createAccessToken(user.id);
+    const refreshToken = createRefreshToken(user.id);
+    // Add the refresh token field in the database
+    user.refreshToken = refreshToken;
+    console.log(database);
+    // send refresh token to the client as a cookie and access token as regular response
+    sendRefreshToken(res, refreshToken);
+    sendAccessToken(req, res, accessToken);
+  } catch (error) {
+    res.send({
+      error: `${error.message}`,
+    });
+  }
+});
+
+// Start server listening on port 5000
+server.listen(process.env.PORT, () =>
+  console.log(`Server running at port ${process.env.PORT}`)
+);
