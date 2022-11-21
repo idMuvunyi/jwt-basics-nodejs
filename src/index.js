@@ -80,6 +80,14 @@ server.post("/login", async (req, res) => {
   }
 });
 
+// User logout
+server.post("/logout", (_req, res) => {
+  res.clearCookie("refreshtoken");
+  return res.send({
+    message: "Logged out",
+  });
+});
+
 // Start server listening on port 5000
 server.listen(process.env.PORT, () =>
   console.log(`Server running at port ${process.env.PORT}`)
