@@ -5,6 +5,7 @@ const cors = require("cors");
 const { verify } = require("jsonwebtoken");
 const { hash, compare } = require("bcrypt");
 const { database } = require("./data");
+const { isAuth } = require("./isAuth");
 const {
   createAccessToken,
   createRefreshToken,
@@ -69,7 +70,6 @@ server.post("/login", async (req, res) => {
     const refreshToken = createRefreshToken(user.id);
     // Add the refresh token field in the database
     user.refreshToken = refreshToken;
-    console.log(database);
     // send refresh token to the client as a cookie and access token as regular response
     sendRefreshToken(res, refreshToken);
     sendAccessToken(req, res, accessToken);
@@ -86,6 +86,22 @@ server.post("/logout", (_req, res) => {
   return res.send({
     message: "Logged out",
   });
+});
+
+// Create protected route
+server.post("/dashboard", async (req, res) => {
+  try {
+    const userId = isAuth(req);
+    if (userId !== null) {
+      res.send({
+        data: "This is dashboard data response",
+      });
+    }
+  } catch (error) {
+    res.send({
+      error: `${error.message}`,
+    });
+  }
 });
 
 // Start server listening on port 5000
