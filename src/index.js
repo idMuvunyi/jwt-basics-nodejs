@@ -82,7 +82,7 @@ server.post("/login", async (req, res) => {
 
 // User logout
 server.post("/logout", (_req, res) => {
-  res.clearCookie("refreshtoken");
+  res.clearCookie("refreshtoken", { path: "/refresh_token" });
   return res.send({
     message: "Logged out",
   });
@@ -102,6 +102,40 @@ server.post("/dashboard", async (req, res) => {
       error: `${error.message}`,
     });
   }
+});
+
+// Get new access token by refresh token
+server.post("/refresh_token", async (req, res) => {
+  // `refreshtoken here is the cookie name
+  const token = req.cookies.refreshtoken;
+  //if no token
+  if (!token) return res.send({ accessToken: "" });
+  // if token is there
+  let payload = null;
+
+  try {
+    payload = verify(token, process.env.REFRESH_TOKEN);
+  } catch (error) {
+    return res.send({
+      accessToken: "",
+    });
+  }
+  // token is valid, then check if user exists as well
+  const user = database.find((user) => user.id === payload.userId);
+  if (!user) return res.send({ accessToken: "" });
+  // user exists, then check if refreshtoken exists on user as well
+  if (user.refreshToken !== token) {
+    return res.send({ accessToken: "" });
+  }
+
+  // token exist, create new refresh, and access token
+  const accessToken = createAccessToken(user.id);
+  const refreshToken = createRefreshToken(user.id);
+
+  //update refresh token in database
+  user.refreshToken = refreshToken;
+  sendRefreshToken(res, refreshToken);
+  return res.send({ accessToken });
 });
 
 // Start server listening on port 5000
